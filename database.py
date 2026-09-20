@@ -120,8 +120,31 @@ def init_db():
         from source_registry import LIST_SOURCES, SOURCE_SEED_DEFAULTS
     except ImportError:
         LIST_SOURCES, SOURCE_SEED_DEFAULTS = {}, {}
-    c.execute("SELECT COUNT(*) as cnt FROM data_sources")
-    if c.fetchone()[0] == 0:
+
+    # The table is only seeded from scratch when empty; existing rows are
+    # upgraded in place so a user who already ran an older version gets the
+    # new venues without losing toggles/proxy settings. Rows for sources no
+    # longer in the registry are dropped (e.g. removed exchanges).
+    existing = {}
+    for row in c.execute("SELECT name, enabled, use_proxy, base_url FROM data_sources"):
+        existing[row[0]] = row
+
+    if existing:
+        c.execute("DELETE FROM data_sources")
+        for prio, name in enumerate(LIST_SOURCES, start=1):
+            d = SOURCE_SEED_DEFAULTS.get(name, {})
+            if name in existing:
+                # keep the user's current enabled/proxy state; registry only
+                # supplies defaults for venues we have never seen before
+                en, prox = int(existing[name][1]), int(existing[name][2])
+                base = existing[name][3] or d.get("base_url", "")
+            else:
+                en, prox, base = d.get("enabled", 1), d.get("use_proxy", 0), d.get("base_url", "")
+            c.execute("""
+                INSERT INTO data_sources (name, type, priority, enabled, use_proxy, base_url)
+                VALUES (?, 'api', ?, ?, ?, ?)
+            """, (name, prio, en, prox, base))
+    else:
         for prio, name in enumerate(LIST_SOURCES, start=1):
             d = SOURCE_SEED_DEFAULTS.get(name, {})
             c.execute("""
