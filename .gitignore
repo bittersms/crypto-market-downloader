@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Local backups from in-place cleanups — never ship
+_cleanup_backup/
+*.bak
+
+# Local scratch / probes
+_smoke*.py
+_smoke*.txt
+_probe*.py
+_trace*.py
+_trace*.txt
+nul
+
+# User state (paths, DB with saved sources/favorites) — not portable
+settings.json
+config.db
