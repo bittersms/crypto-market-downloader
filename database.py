@@ -108,19 +108,26 @@ def init_db():
     for sc in default_stablecoins:
         c.execute("INSERT OR IGNORE INTO stablecoins (symbol) VALUES (?)", (sc,))
 
-    # Insert default data sources if table is empty
+    # Seed data sources from the source registry — the registry (LIST_SOURCES
+    # in source_registry.py) is the single source of truth for which venues
+    # exist. A hardcoded list here used to seed only 4 sources, so on a fresh
+    # machine (no config.db) the Data Sources tab and every source dropdown
+    # showed only kucoin/mexc/binance/coingecko.
+    #
+    # Imported lazily: source_registry imports failover, which imports this
+    # module, so a top-level import here would be circular.
+    try:
+        from source_registry import LIST_SOURCES, SOURCE_SEED_DEFAULTS
+    except ImportError:
+        LIST_SOURCES, SOURCE_SEED_DEFAULTS = {}, {}
     c.execute("SELECT COUNT(*) as cnt FROM data_sources")
     if c.fetchone()[0] == 0:
-        for name, prio, base_url, use_proxy in [
-            ("kucoin",    1, "https://api.kucoin.com",    0),
-            ("mexc",      2, "https://api.mexc.com",      0),
-            ("binance",   3, "https://api.binance.com",   1),
-            ("coingecko", 4, "https://api.coingecko.com", 0),
-        ]:
+        for prio, name in enumerate(LIST_SOURCES, start=1):
+            d = SOURCE_SEED_DEFAULTS.get(name, {})
             c.execute("""
                 INSERT INTO data_sources (name, type, priority, enabled, use_proxy, base_url)
-                VALUES (?, 'api', ?, 1, ?, ?)
-            """, (name, prio, use_proxy, base_url))
+                VALUES (?, 'api', ?, ?, ?, ?)
+            """, (name, prio, d.get("enabled", 1), d.get("use_proxy", 0), d.get("base_url", "")))
 
     conn.commit()
     conn.close()

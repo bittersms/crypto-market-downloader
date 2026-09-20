@@ -109,6 +109,31 @@ LIST_SOURCES = {
 
 CANDLE_SOURCES = dict(LIST_SOURCES)
 
+# Seed defaults for the Data Sources table on a fresh machine. enabled/proxy
+# reflect the verified state: venues with hard API ceilings are disabled so
+# first-run candle downloads go to the sources that actually serve full
+# history. base_url is informational only (adapters build their own URLs).
+SOURCE_SEED_DEFAULTS = {
+    "kucoin":      {"enabled": 1, "use_proxy": 0, "base_url": "https://api.kucoin.com"},
+    "mexc":        {"enabled": 1, "use_proxy": 1, "base_url": "https://api.mexc.com"},
+    "binance":     {"enabled": 1, "use_proxy": 1, "base_url": "https://api.binance.com"},
+    "coingecko":   {"enabled": 0, "use_proxy": 0, "base_url": "https://api.coingecko.com"},  # 4h-only candles
+    "gate":        {"enabled": 1, "use_proxy": 1, "base_url": "https://api.gateio.ws"},
+    "okx":         {"enabled": 1, "use_proxy": 1, "base_url": "https://www.okx.com"},
+    "bybit":       {"enabled": 1, "use_proxy": 1, "base_url": "https://api.bybit.com"},
+    "bingx":       {"enabled": 0, "use_proxy": 1, "base_url": "https://open-api.bingx.com"},  # newest 1000
+    "xt":          {"enabled": 1, "use_proxy": 1, "base_url": "https://sapi.xt.com"},
+    "digifinex":   {"enabled": 0, "use_proxy": 1, "base_url": "https://open.digifinex.com"},  # newest 500
+    "kraken":      {"enabled": 0, "use_proxy": 1, "base_url": "https://api.kraken.com"},      # newest 720
+    "bitfinex":    {"enabled": 1, "use_proxy": 1, "base_url": "https://api-pub.bitfinex.com"},
+    "coinbase":    {"enabled": 0, "use_proxy": 1, "base_url": "https://api.exchange.coinbase.com"},  # newest 300
+    "bitstamp":    {"enabled": 1, "use_proxy": 1, "base_url": "https://www.bitstamp.net"},
+    "htx":         {"enabled": 0, "use_proxy": 1, "base_url": "https://api.huobi.pro"},       # newest 1000
+    "lbank":       {"enabled": 1, "use_proxy": 0, "base_url": "https://api.lbkex.com"},
+    "hyperliquid": {"enabled": 1, "use_proxy": 0, "base_url": "https://api.hyperliquid.xyz"},  # 1m: ~3.5d
+}
+
+
 # Concrete class names per source
 LIST_CLASS_NAMES = {
     "coingecko": "CoingeckoListSource",
