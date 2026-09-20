@@ -19,3 +19,9 @@ nul
 # User state (paths, DB with saved sources/favorites) — not portable
 settings.json
 config.db
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+build_exe.log
