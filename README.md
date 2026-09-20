@@ -1,65 +1,143 @@
 # Crypto Market Data Downloader
 
-A fast, modular cryptocurrency market data downloader with a full GUI, designed for MetaTrader M1+ candle data export.
+یک دانلودر ماژولار دیتای بازار کریپتو با رابط گرافیکی (Tkinter) که **بدون هیچ API Key** دیتای کندل می‌گیرد و فایل‌های CSV سازگار با فرمت MetaTrader تولید می‌کند. تمام ارتباطات از طریق پروکسی SOCKS5 انجام می‌شود.
 
-## Features
+---
 
-1. **Cryptocurrency List Fetching** - Get top N cryptos by market cap (rank 1+), excluding stablecoins
-2. **Favorite Lists** - Save interesting cryptos into named custom lists
-3. **Historical Data Download** - Download complete market data with failover across sources
-4. **Pluggable Sources** - Editable source list with priority ordering and per-source proxy settings
-5. **Proxy Support** - SOCKS4/SOCKS5/HTTP proxy, configurable per source
-6. **Modular Architecture** - Source plugins are auto-discovered; add new ones easily
-7. **MT5-Compatible Export** - CSV and TXT formats for MetaTrader 5
-8. **Candle Resampling** - Resample 1m data to any timeframe (1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 1d, 1w)
-9. **Fast Downloads** - Parallel fetching with progress bar
+## امکانات
 
-## Project Structure
+- **۱۱ صرافی تأییدشده** — همه با تست واقعی (لیست ارزها + کندل) بررسی شده‌اند
+- **بدون API Key** — هیچ توکن، رمز یا اعتبارنامه‌ای لازم نیست
+- **خروجی سازگار با MT5** — فایل `SYMBOL_TF_EXCHANGE.csv` با فرمت `DATE<TAB>TIME<TAB>OPEN<TAB>HIGH<TAB>LOW<TAB>CLOSE<TAB>VOL`
+- **دانلود تک‌منبعی** — هر سرویس دیتا را از صرافی انتخابی خودش می‌گیرد (failover روی کندل‌ها غیرفعال است)
+- **merge افزایشی** — بازدانلود کل بازه انجام نمی‌شود؛ فقط کندل‌های جدید با فایل موجود ادغام می‌شوند
+- **سرور API محلی** — یک سرور کاملاً سازگار با پروتکل Binance روی `127.0.0.1:8900` که فایل‌های ذخیره‌شده را سرو می‌کند (شامل `.idx` برای lazy-parse سریع)
+- **به‌روزرسانی خودکار** — هر N دقیقه کندل‌های جدید دریافت و با فایل ادغام می‌شوند
+- **پروکسی per-source** — SOCKS4/SOCKS5/HTTP، قابل تنظیم برای هر صرافی به‌صورت جداگانه
+- **فهرست علاقه‌مندی‌ها** — ذخیره ارزها در لیست‌های نام‌دار
 
-```
-crypto_market_downloader/
-├── launcher.py          # Entry point
-├── app.py               # Main GUI application
-├── gui.py               # Theme colors
-├── widgets.py           # Themed UI components
-├── config.py            # Settings management
-├── database.py          # SQLite storage
-├── proxy_manager.py     # Proxy configuration
-├── failover.py          # Failover logic across sources
-├── source_registry.py   # Source registry and batch fetching
-├── data_fetcher.py      # Abstract base classes for sources
-├── mt5_exporter.py      # MetaTrader 5 format exporter
-├── progress.py          # Terminal progress bar
-└── sources/             # Source plugins
-    ├── __init__.py
-    ├── coingecko.py     # CoinGecko API (list + candles)
-    ├── binance.py       # Binance API (list + candles, proxy)
-    ├── mexc.py          # MEXC API (list + candles)
-    └── kucoin.py        # KuCoin API (list + candles)
-```
+---
 
-## Usage
+## صرافی‌های پشتیبانی‌شده
+
+| صرافی | سابقه (۱ دقیقه) | نکته |
+|---|---|---|
+| binance | کامل | — |
+| bybit | کامل | — |
+| okx | کامل | — |
+| kucoin | کامل | — |
+| mexc | کامل | — |
+| gate | کامل | — |
+| bitfinex | کامل | — |
+| bitstamp | کامل | — |
+| xt | کامل | — |
+| lbank | کامل | — |
+| hyperliquid | 5m: کامل / **1m: ~۳.۵ روز** | API این صرافی سقف ~۵۲۰۰ کندل دارد (محدودیت سمت سرور) |
+
+> محدودیت‌های بالا در تب **Data Sources** برنامه هم نمایش داده می‌شوند.
+
+---
+
+## اجرا
 
 ```bash
-cd ~/AppData/Local/hermes/crypto_market_downloader
 python launcher.py
 ```
 
-## Adding a New Source
-
-1. Create a new file in `sources/` (e.g., `myexchange.py`)
-2. Implement `CryptoListSource` and/or `CandleSource` classes
-3. Register the source in `source_registry.py`:
-   - Add to `LIST_SOURCES` dict for list fetching
-   - Add to `CANDLE_SOURCES` dict for candle data
-4. Add to the database sources table via the Sources tab
-
-## Requirements
+### پیش‌نیازها
 
 - Python 3.11+
-- tkinter
-- requests
-- PySocks (for SOCKS proxy support)
+- tkinter (در ویندوز پیش‌فرض نصب است)
+- `pip install requests PySocks`
+
+> پروکسی پیش‌فرض `socks5://127.0.0.1:10808` است و از تب **Settings** قابل تغییر است.
+
+---
+
+## ساختار پروژه
+
+```
+crypto_market_downloader/
+├── launcher.py            # نقطه ورود
+├── app.py                 # رابط گرافیکی اصلی (تب‌ها، دانلود، worker threadها)
+├── gui.py                 # پالت رنگ تم دارک
+├── widgets.py             # کامپوننت‌های UI تم‌دار
+├── config.py              # مدیریت settings.json
+├── database.py            # ذخیره‌سازی SQLite (sources، favorites، lists)
+├── proxy_manager.py       # پیکربندی و مدیریت پروکسی
+├── failover.py            # لایه request + retry (فقط برای لیست ارزها)
+├── source_registry.py     # رجیستری صرافی‌ها + جدول قابلیت‌ها
+├── data_fetcher.py        # کلاس‌های پایه انتزاعی منابع
+├── mt5_exporter.py        # خروجی MT5 + merge افزایشی
+├── api_server.py          # سرور API سازگار با Binance (پورت ۸۹۰۰)
+└── sources/               # آداپتورهای صرافی‌ها
+    ├── __init__.py
+    ├── binance.py         # binance
+    ├── mexc.py            # mexc
+    ├── kucoin.py          # kucoin
+    ├── gate.py            # gate
+    ├── okx.py             # okx
+    ├── coingecko.py       # coingecko (گارد ۴ ساعتی)
+    ├── lbank.py           # lbank
+    ├── hyperliquid.py     # hyperliquid (POST/JSON)
+    ├── binance_like.py    # پایه مشترک Binance-like
+    ├── binance_like_extras.py  # bybit / bingx / xt / digifinex
+    └── native_exchanges.py     # kraken / bitfinex / bitstamp / coinbase / htx
+```
+
+---
+
+## تب‌های برنامه
+
+| تب | کاربرد |
+|---|---|
+| **Cryptocurrencies** | گرفتن فهرست برتر ارزها (top N) |
+| **Favorite Lists** | ساختن و مدیریت لیست‌های علاقه‌مندی |
+| **Data Downloader** | انتخاب صرافی/ارز/بازه و دانلود |
+| **Data Sources** | فعال/غیرفعال کردن صرافی‌ها و پروکسی هر کدام + تست اتصال |
+| **Auto Update** | به‌روزرسانی خودکار + روشن کردن سرور API |
+| **Settings** | تنظیمات عمومی و پروکسی |
+
+---
+
+## سرور API
+
+سرور محلی کاملاً سازگار با پروتکل Binance است:
+
+```bash
+python api_server.py --port 8900
+```
+
+**Endpoints:** `/api/v3/ping` · `/api/v3/exchangeInfo` · `/api/v3/klines` · `/api/v3/ticker/price` · `/api/v3/ticker/bookTicker`
+
+سند کامل استفاده: [`API_DOC.md`](API_DOC.md)
+
+---
+
+## اضافه کردن صرافی جدید
+
+۱. یک فایل در `sources/` بسازید (مثلاً `myexchange.py`)
+۲. کلاس‌های `CryptoListSource` و `CandleSource` را پیاده‌سازی کنید
+۳. در `source_registry.py` ثبت کنید:
+   - در `LIST_SOURCES` و `CANDLE_SOURCES` (مسیر ماژول)
+   - در `LIST_CLASS_NAMES` و `CANDLE_CLASS_NAMES` (نام کلاس)
+   - در `HISTORY_LIMIT` (محدودیت سابقه صرافی برای نمایش در GUI)
+۴. در دیتابیس (تب Data Sources) منبع را فعال کنید — GUI فقط منابع فعال را نمایش می‌دهد
+
+> **نکته مهم:** نمایش در GUI از دیتابیس خوانده می‌شود، نه فقط از رجیستری. ثبت در رجیستری به‌تنهایی کافی نیست.
+
+---
+
+## فرمت فایل خروجی
+
+```
+DATE	TIME	OPEN	HIGH	LOW	CLOSE	VOL
+2026.09.20	09:00	123456.780000	123500.000000	123400.000000	123480.000000	15.420000
+```
+
+- نام فایل: `SYMBOL_TF_EXCHANGE.csv` (مثلاً `BTC_1M_BINANCE.csv`)
+- تاریخ `YYYY.MM.DD`، زمان `HH:MM`، قیمت با ۶ رقم اعشار
+- هر صرافی در فایل جداگانه — چون سابقه هر venue متفاوت است
 
 ## License
 
