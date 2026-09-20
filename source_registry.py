@@ -5,7 +5,7 @@ failover orchestration for fetching data.
 """
 import importlib
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from failover import fetch_with_failover
 
@@ -58,6 +58,32 @@ def get_source_capability(source_name):
     except Exception:
         page = None
     return limit, (page if page else "?")
+
+
+# Live-probed list-source health (2026-09-20, via fetch_list(20)).
+# Broken list sources are excluded from the "List Source" dropdown so the user
+# can never pick a dead venue. "Empty result" sources (digifinex, coinbase)
+# return [] for top-N USDT pairs, so they are marked broken too - an empty
+# list would fail over to another source and look like a no-op.
+LIST_SOURCE_OK = {
+    "coingecko": True,   # real market-cap data, but candles are 4h-only
+    "binance": True,
+    "mexc": True,
+    "kucoin": True,
+    "gate": True,
+    "okx": True,
+    "bybit": True,
+    "bitfinex": True,
+    "bitstamp": True,
+    "htx": True,
+    "lbank": True,
+    "hyperliquid": True,
+    "xt": True,
+    "bingx": False,      # list endpoint removed: {"code": 100400, "api not exist"}
+    "digifinex": False,  # returns 0 rows for USDT pairs
+    "kraken": False,     # EQuery:Unknown asset pair on every pair
+    "coinbase": False,   # returns 0 rows (USDT pairs not available in this region)
+}
 
 
 # Available source modules — maps source name to module path
@@ -151,14 +177,33 @@ def get_candle_source_instance(source_name):
     return cls()
 
 
-def get_crypto_list(top_n: int, exclude_stablecoins: bool = True, settings=None) -> List[Dict]:
-    """Fetch cryptocurrency list with failover across list sources."""
+def get_crypto_list(top_n: int, exclude_stablecoins: bool = True,
+                    settings=None, source_name: Optional[str] = None) -> List[Dict]:
+    """Fetch cryptocurrency list, optionally from one specific source.
+
+    source_name=None keeps the historical behaviour: failover across enabled
+    list sources in priority order. A named source (e.g. "coingecko") queries
+    that venue only — this is what makes the list actually switchable in the
+    GUI, since automatic failover always returns the first working source
+    (kucoin), which looked like a bug to the user.
+
+    A named source is fetched directly rather than through failover: venues
+    are often disabled in the Sources tab because their *candle* history is
+    limited (coingecko is 4h-only) even though their *list* data is fine, and
+    honouring the enabled flag here would silently fail with "no enabled
+    sources". Only the LIST_SOURCE_OK probe gates which venues are offered.
+    """
     def try_source(source_config):
         source = get_list_source_instance(source_config["name"])
         return source.fetch_list(top_n, exclude_stablecoins)
 
     try:
-        data = fetch_with_failover(try_source, settings=settings)
+        if source_name:
+            data = try_source({"name": source_name})
+            if not data:
+                raise RuntimeError(f"{source_name}: returned no coins")
+        else:
+            data = fetch_with_failover(try_source, settings=settings)
         from database import save_crypto_list
         save_crypto_list(data)
         return data

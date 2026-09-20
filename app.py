@@ -137,6 +137,22 @@ class CryptoMarketDownloaderApp:
         top_frame = tk.Frame(self.tab_crypto, bg=AppTheme.BG_DARK)
         top_frame.pack(fill="x", padx=12, pady=8)
 
+        # List source selector. The crypto list used to be fetched by automatic
+        # failover, which silently always returned kucoin (priority 1, and it
+        # works) — giving the impression there is no way to change it. Now the
+        # source is explicit: "Auto" keeps the old failover behaviour, any
+        # named source fetches the list from that venue only.
+        src_frame = tk.Frame(top_frame, bg=AppTheme.BG_DARK)
+        src_frame.pack(side="left")
+        tk.Label(src_frame, text="List Source:", fg=AppTheme.TEXT,
+                 bg=AppTheme.BG_DARK, font=("Segoe UI", 9)).pack(side="left")
+        self.cmbb_crypto_source = ThemedCombobox(
+            src_frame, state="readonly", width=14, values=[])
+        self.cmbb_crypto_source.pack(side="left", padx=(6, 0))
+        self._populate_crypto_source_combobox()
+        self.cmbb_crypto_source.bind("<<ComboboxSelected>>",
+                                     lambda _e: self._persist_crypto_source())
+
         # Top N / Exclude Stablecoins live in the Settings tab now.
         btn_frame = tk.Frame(top_frame, bg=AppTheme.BG_DARK)
         btn_frame.pack(side="right")
@@ -193,13 +209,19 @@ class CryptoMarketDownloaderApp:
     def _fetch_crypto_list(self):
         top_n = int(self.settings.get("top_n", 100))
         exclude_sc = self.settings.get("exclude_stablecoins", True)
+        source_name = self.cmbb_crypto_source.get()
+        if source_name == "Auto (failover)":
+            source_name = None
 
-        self.lbl_status.config(text=f"\U0001F50D Fetching top {top_n} cryptocurrencies...")
+        label = "Auto (failover)" if not source_name else source_name
+        self.lbl_status.config(text=f"\U0001F50D Fetching top {top_n} from {label}...")
         self.btn_fetch_crypto.config(state="disabled")
 
         def do_fetch():
             try:
-                data = fetch_crypto_list(top_n, exclude_stablecoins=exclude_sc, settings=self.settings)
+                data = fetch_crypto_list(top_n, exclude_stablecoins=exclude_sc,
+                                         settings=self.settings,
+                                         source_name=source_name)
                 self._safe_ui(lambda: _update_ui(data, True, None))
             except Exception as e:
                 self._safe_ui(lambda e=e: _update_ui(None, False, e))
@@ -862,6 +884,19 @@ class CryptoMarketDownloaderApp:
                 vals = list(self.cmbb_download_list.cget("values"))
                 if lst in vals:
                     self.cmbb_download_list.current(vals.index(lst))
+            # Restore the crypto-list source choice too (set by
+            # _persist_crypto_source on every combobox change).
+            cl = s.get("crypto_list_source")
+            if cl:
+                self._populate_crypto_source_combobox()
+        except Exception:
+            pass
+
+    def _persist_crypto_source(self):
+        """Persist the crypto-list source choice (called on combobox change)."""
+        try:
+            self.settings["crypto_list_source"] = self.cmbb_crypto_source.get()
+            self._save_settings()
         except Exception:
             pass
 
@@ -887,6 +922,25 @@ class CryptoMarketDownloaderApp:
                 subprocess.Popen(["xdg-open", out])
         except Exception as e:
             messagebox.showerror("Error", f"Could not open folder:\n{e}")
+
+    def _populate_crypto_source_combobox(self):
+        """Fill the crypto-list source dropdown.
+
+        Offers "Auto" (failover across enabled sources) plus every venue that
+        can serve a coin list, regardless of its candle enabled state: a source
+        can be useless for candles (e.g. coingecko's 4h-only OHLC) while still
+        being the best list source. Broken list sources are excluded by the
+        probe in LIST_SOURCE_OK, so the dropdown never offers a dead venue.
+        """
+        from source_registry import LIST_SOURCES, LIST_SOURCE_OK
+        names = ["Auto (failover)"] + [n for n in LIST_SOURCES if LIST_SOURCE_OK.get(n)]
+        self.cmbb_crypto_source.config(values=names)
+        cur = self.cmbb_crypto_source.get()
+        if cur not in names:
+            # Persisted choice, else default to Auto
+            saved = self.settings.get("crypto_list_source", "")
+            pick = saved if saved in names else names[0]
+            self.cmbb_crypto_source.set(pick)
 
     def _populate_exchange_combobox(self):
         """Fill the exchange dropdown with ENABLED candle sources only."""

@@ -34,6 +34,10 @@ DEFAULT_SETTINGS = {
     "retry_delay": 1,
     "mt5_export_format": "csv",  # csv or txt
     "show_progress": True,
+    # Crypto-list source. Empty/"Auto (failover)" = failover across enabled
+    # sources (historical behaviour). A venue name fetches the list from that
+    # source only, so the coin list is actually switchable in the GUI.
+    "crypto_list_source": "",
 }
 
 

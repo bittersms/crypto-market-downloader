@@ -91,7 +91,7 @@ crypto_market_downloader/
 
 | تب | کاربرد |
 |---|---|
-| **Cryptocurrencies** | گرفتن فهرست برتر ارزها (top N) |
+| **Cryptocurrencies** | گرفتن فهرست برتر ارزها (top N) — منبع لیست از منوی کشویی **List Source** قابل تغییر است («Auto» = failover خودمان، یا یک صرافی خاص مانند CoinGecko) |
 | **Favorite Lists** | ساختن و مدیریت لیست‌های علاقه‌مندی |
 | **Data Downloader** | انتخاب صرافی/ارز/بازه و دانلود |
 | **Data Sources** | فعال/غیرفعال کردن صرافی‌ها و پروکسی هر کدام + تست اتصال |
