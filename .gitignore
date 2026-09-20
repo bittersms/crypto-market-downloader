@@ -24,5 +24,6 @@ config.db
 build/
 dist/
 build_exe.log
-# Keep the build spec itself so the exe build is reproducible
+*.spec
+# Keep our build spec so the exe build is reproducible
 !cmd_exe.spec
